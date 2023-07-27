@@ -1,0 +1,157 @@
+<html>
+
+<head>
+  <style>
+    .center-align {
+      text-align: center;
+    }
+    body {
+      filter: invert(1);
+      background-color: black;
+    }
+    a{
+      filter: invert(1);
+    }
+    div {
+      padding: 1em;
+    }
+  </style>
+</head>
+
+<body>
+  <title>VNDB Playtime Calculator</title>
+  <h1 class="center-align">VNDB Playtime Calculator</h1>
+  <div class="center-align">
+    <label for="userid">VNDB User ID:</label>
+    <input type="text" id="userid" name="userid" placeholder="u123456"><br /><br />
+    <button type="button" id="show-button">Show Me!</button>
+  </div>
+  <div class="center-align" id="output-section">
+
+  </div>
+</body>
+
+<script>
+  // I know this code is horrific. I'm not good at JS and don't like it either. I mean, what the fuck is a promise anyway?
+  let currentPage = 1;
+  let vnData = [];
+
+  function timeCalculation(total_minutes)
+  {
+    // turn minutes into days, hours and minutes
+    let days = Math.floor(total_minutes / (60 * 24));
+    let hours = Math.floor((total_minutes / 60) % 24);
+    let minutes = total_minutes % 60;
+    return `${days} days, ${hours} hours and ${minutes} minutes`;
+  }
+
+  function processData(data)
+  {
+    let outputSection = document.getElementById("output-section");
+    let totalMinutes = 0;
+    let hasNoData = [];
+    let hasData = [];
+    
+    // add up playtime and note if VN has any playtime data
+    for(const result of data)
+    {
+      if (result.vn.length_minutes == null)
+      {
+        hasNoData.push(result);
+      }
+      else
+      {
+        totalMinutes += result.vn.length_minutes;
+        hasData.push(result);
+      }
+    }
+
+    // show total playtime
+    outputSection.innerHTML += `<h2>Total Playtime: ${timeCalculation(totalMinutes)}</h2>`;
+    // show any VNs without playtime data
+    if (hasNoData.length > 0)
+    {
+      outputSection.innerHTML += "<h3>Some of your VNs have no Playtime Data:</h3>";
+      for(const element of hasNoData)
+      {
+        outputSection.innerHTML += `<a href="https://vndb.org/${element.id}">${element.vn.title}</a><br />`
+      }
+    }
+    // show VNs used to add up playtime data
+    outputSection.innerHTML += `<h3>${data.length} VNs used for Calculation:</h3>`;
+    for(const element of hasData)
+    {
+      outputSection.innerHTML += `<a href="https://vndb.org/${element.id}">${element.vn.title}</a><br />`
+    }
+  }
+
+  function processPage(data)
+  {
+    // collect data and go to next page
+    vnData = vnData.concat(data);
+    currentPage++;
+  }
+
+  async function buttonClick()
+  {
+    let json = "";
+    currentPage = 1;
+    let requestCount = 0;
+    vnData = [];
+    let morePages = true;
+    let userid = document.getElementById("userid").value;
+
+    // get more pages as long as there's still data to get
+    while (morePages && requestCount < 100) // limit requests to 100 to avoid things going totally apeshit if something goes wrong
+    {
+      // do an http request in probably the ugliest way possible (is this normal by js standards? i sure as fuck hope not)
+      await fetch("https://api.vndb.org/kana/ulist", {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: `{
+          "user": "${userid}",
+          "filters": ["label", "=", 2],
+          "fields": "id, vn.title, vn.length_minutes",
+          "page": ${currentPage},
+          "results": "100"
+        }`,
+      }).then(function(response) {
+        if (response.status != 200)
+        {
+          window.alert(`Error getting Data. (${response.status})\nPlease make sure the User ID you entered is valid.`);
+          document.getElementById("show-button").removeAttribute("disabled");
+        }
+        else
+        {
+          return response.json();
+        }
+      }).then(function(json){
+        console.log(json);
+        if (json.results.length > 0)
+        {
+          processPage(json.results);
+        }
+        else
+        {
+          morePages = false;
+        }
+      });
+      requestCount++;
+    }
+
+    // finish up
+    processData(vnData);
+    document.getElementById("show-button").removeAttribute("disabled");
+  }
+
+  document.getElementById("show-button").onclick = function(){
+    this.disabled = true; // disable button to prevent async fuckups if someone clicks it multiple times
+    document.getElementById("output-section").innerHTML = ""; // empty output just in case this page was used before
+    buttonClick();
+  }
+</script>
+
+</html>
