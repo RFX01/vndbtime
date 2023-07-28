@@ -78,7 +78,7 @@
       }
     }
     // show VNs used to add up playtime data
-    outputSection.innerHTML += `<h3>${data.length} VNs used for Calculation:</h3>`;
+    outputSection.innerHTML += `<h3>${hasData.length} VNs used for Calculation:</h3>`;
     for(const element of hasData)
     {
       outputSection.innerHTML += `<a href="https://vndb.org/${element.id}">${element.vn.title}</a><br />`
