@@ -5,13 +5,16 @@
     .center-align {
       text-align: center;
     }
+
     body {
       filter: invert(1);
       background-color: black;
     }
-    a{
+
+    a {
       filter: invert(1);
     }
+
     div {
       padding: 1em;
     }
@@ -24,7 +27,9 @@
   <div class="center-align">
     <label for="userid">VNDB User ID:</label>
     <input type="text" id="userid" name="userid" placeholder="u123456"><br /><br />
-    <button type="button" id="show-button">Show Me!</button>
+    <button type="button" id="labels-button">Get Labels!</button>
+    <div id="labels-section"></div>
+    
   </div>
   <div class="center-align" id="output-section">
 
@@ -33,11 +38,12 @@
 
 <script>
   // I know this code is horrific. I'm not good at JS and don't like it either. I mean, what the fuck is a promise anyway?
+  // If it works then it's good code -other dev
   let currentPage = 1;
   let vnData = [];
+  let labelsData = [];
 
-  function timeCalculation(total_minutes)
-  {
+  function timeCalculation(total_minutes) {
     // turn minutes into days, hours and minutes
     let days = Math.floor(total_minutes / (60 * 24));
     let hours = Math.floor((total_minutes / 60) % 24);
@@ -45,22 +51,18 @@
     return `${days} days, ${hours} hours and ${minutes} minutes`;
   }
 
-  function processData(data)
-  {
+  function processData(data) {
     let outputSection = document.getElementById("output-section");
     let totalMinutes = 0;
     let hasNoData = [];
     let hasData = [];
-    
+
     // add up playtime and note if VN has any playtime data
-    for(const result of data)
-    {
-      if (result.vn.length_minutes == null)
-      {
+    for (const result of data) {
+      if (result.vn.length_minutes == null) {
         hasNoData.push(result);
       }
-      else
-      {
+      else {
         totalMinutes += result.vn.length_minutes;
         hasData.push(result);
       }
@@ -69,31 +71,26 @@
     // show total playtime
     outputSection.innerHTML += `<h2>Total Playtime: ${timeCalculation(totalMinutes)}</h2>`;
     // show any VNs without playtime data
-    if (hasNoData.length > 0)
-    {
+    if (hasNoData.length > 0) {
       outputSection.innerHTML += "<h3>Some of your VNs have no Playtime Data:</h3>";
-      for(const element of hasNoData)
-      {
+      for (const element of hasNoData) {
         outputSection.innerHTML += `<a href="https://vndb.org/${element.id}">${element.vn.title}</a><br />`
       }
     }
     // show VNs used to add up playtime data
     outputSection.innerHTML += `<h3>${hasData.length} VNs used for Calculation:</h3>`;
-    for(const element of hasData)
-    {
+    for (const element of hasData) {
       outputSection.innerHTML += `<a href="https://vndb.org/${element.id}">${element.vn.title}</a><br />`
     }
   }
 
-  function processPage(data)
-  {
+  function processPage(data) {
     // collect data and go to next page
     vnData = vnData.concat(data);
     currentPage++;
   }
 
-  async function buttonClick()
-  {
+  async function buttonClick() {
     let json = "";
     currentPage = 1;
     let requestCount = 0;
@@ -113,29 +110,25 @@
         },
         body: `{
           "user": "${userid}",
-          "filters": ["label", "=", 2],
+          "filters": ["label", "=", ${document.getElementById("labels").value}],
           "fields": "id, vn.title, vn.length_minutes",
           "page": ${currentPage},
           "results": "100"
         }`,
-      }).then(function(response) {
-        if (response.status != 200)
-        {
+      }).then(function (response) {
+        if (response.status != 200) {
           window.alert(`Error getting Data. (${response.status})\nPlease make sure the User ID you entered is valid.`);
           document.getElementById("show-button").removeAttribute("disabled");
         }
-        else
-        {
+        else {
           return response.json();
         }
-      }).then(function(json){
+      }).then(function (json) {
         console.log(json);
-        if (json.results.length > 0)
-        {
+        if (json.results.length > 0) {
           processPage(json.results);
         }
-        else
-        {
+        else {
           morePages = false;
         }
       });
@@ -147,10 +140,59 @@
     document.getElementById("show-button").removeAttribute("disabled");
   }
 
-  document.getElementById("show-button").onclick = function(){
+  async function labelsButtonClick() {
+    let json = "";
+    let userid = document.getElementById("userid").value;
+
+    await fetch("https://api.vndb.org/kana/ulist_labels?user=" + userid, {
+      method: 'GET',
+    }).then(function (response) {
+      if (response.status != 200) {
+        window.alert(`Error getting Data. (${response.status})\nPlease make sure the User ID you entered is valid.`);
+        document.getElementById("labels-button").removeAttribute("disabled");
+      }
+      else {
+        return response.json();
+      }
+    }).then(function (json) {
+      if (json.labels.length > 0) {
+        labelsData = json.labels;
+      }
+    });
+  }
+
+
+
+  document.getElementById("labels-button").onclick = async function () {
+    this.disabled = true; // disable button to prevent async fuckups if someone clicks it multiple times
+    labelsSection = document.getElementById("labels-section");
+    labelsSection.innerHTML = ""; // empty output just in case this page was used before
+    await labelsButtonClick();
+    let innerHTMLtoAdd = ""
+    innerHTMLtoAdd += `<label for="labels">VN Label: </label>`;
+    innerHTMLtoAdd += `<select name="label-select" id="labels">`;
+    labelsData.forEach(label => {
+      if (label.label == "Finished") { // Default value
+        innerHTMLtoAdd += `<option selected value=${label.id}>${label.label}</option>`
+      }
+      else {
+        innerHTMLtoAdd += `<option value=${label.id}>${label.label}</option>`
+      }
+    })
+    innerHTMLtoAdd += `</select>`
+    labelsSection.innerHTML = innerHTMLtoAdd;
+	const showButton = document.createElement('button');
+	showButton.type = 'button';
+	showButton.id = 'show-button';
+	showButton.textContent = 'Show Me!';
+	  showButton.onclick = function () {
     this.disabled = true; // disable button to prevent async fuckups if someone clicks it multiple times
     document.getElementById("output-section").innerHTML = ""; // empty output just in case this page was used before
     buttonClick();
+  }
+	labelsSection.insertAdjacentElement('afterend', showButton);
+	
+
   }
 </script>
 
