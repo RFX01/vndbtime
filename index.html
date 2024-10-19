@@ -29,7 +29,7 @@
     <input type="text" id="userid" name="userid" placeholder="u123456"><br /><br />
     <button type="button" id="labels-button">Get Labels!</button>
     <div id="labels-section"></div>
-    <button type="button" id="show-button">Show Me!</button>
+    
   </div>
   <div class="center-align" id="output-section">
 
@@ -161,11 +161,7 @@
     });
   }
 
-  document.getElementById("show-button").onclick = function () {
-    this.disabled = true; // disable button to prevent async fuckups if someone clicks it multiple times
-    document.getElementById("output-section").innerHTML = ""; // empty output just in case this page was used before
-    buttonClick();
-  }
+
 
   document.getElementById("labels-button").onclick = async function () {
     this.disabled = true; // disable button to prevent async fuckups if someone clicks it multiple times
@@ -185,6 +181,17 @@
     })
     innerHTMLtoAdd += `</select>`
     labelsSection.innerHTML = innerHTMLtoAdd;
+	const showButton = document.createElement('button');
+	showButton.type = 'button';
+	showButton.id = 'show-button';
+	showButton.textContent = 'Show Me!';
+	  showButton.onclick = function () {
+    this.disabled = true; // disable button to prevent async fuckups if someone clicks it multiple times
+    document.getElementById("output-section").innerHTML = ""; // empty output just in case this page was used before
+    buttonClick();
+  }
+	labelsSection.insertAdjacentElement('afterend', showButton);
+	
 
   }
 </script>
